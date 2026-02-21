@@ -1,20 +1,22 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
 client.commands = new Map();
+const prefix = "!";
 
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync('./comandos').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = require(`./commands/${file}`);
+  const command = require(`./comandos/${file}`);
   client.commands.set(command.name, command);
 }
 
@@ -22,15 +24,21 @@ client.once('ready', () => {
   console.log(`Bot online como ${client.user.tag}`);
 });
 
-client.on('messageCreate', message => {
-  if (!message.content.startsWith('!') || message.author.bot) return;
+client.on('messageCreate', async message => {
+  if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-  const args = message.content.slice(1).split(/ +/);
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
   const commandName = args.shift().toLowerCase();
 
-  if (!client.commands.has(commandName)) return;
+  const command = client.commands.get(commandName);
+  if (!command) return;
 
-  client.commands.get(commandName).execute(message, args);
+  try {
+    await command.execute(message, args, client);
+  } catch (error) {
+    console.error(error);
+    message.reply("Erro ao executar o comando.");
+  }
 });
 
 client.login(process.env.TOKEN);
